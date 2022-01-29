@@ -10,7 +10,7 @@ import com.intellij.openapi.actionSystem.AnActionEvent;
 public class CartoonPageLeft extends AnAction implements CartoonPage {
 
     @Override
-    public void actionPerformed(AnActionEvent e) {
-        page(-1);
+    public void actionPerformed(AnActionEvent anActionEvent) {
+        page(-1  ,anActionEvent);
     }
 }
