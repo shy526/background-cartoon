@@ -1,0 +1,31 @@
+<idea-plugin>
+    <id>com.shy526.background-cartoon</id>
+    <name>backgroundCartoon</name>
+    <vendor email="shy526-@outlook.com" url="http://www.outlook.com">shy526</vendor>
+
+    <description>用背景看漫画--------------------------------------</description>
+
+    <!-- please see https://plugins.jetbrains.com/docs/intellij/plugin-compatibility.html
+         on how to target different products -->
+    <depends>com.intellij.modules.platform</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <notificationGroup id="background-cartoon" displayType="BALLOON"/>
+        <applicationConfigurable parentId="tools" groupWeight="20" id="com.github.shy526.ui.Settings"
+                                 displayName="Background Cartoon"
+                                 instance="com.github.shy526.ui.Settings"/>
+
+        <applicationService serviceImplementation="com.github.shy526.service.StorageService"/>
+    </extensions>
+
+    <actions>
+        <action id="CartoonPageLeft" class="com.github.shy526.action.CartoonPageLeft" text="CartoonPageLeft"
+                description="CartoonPageLeft">
+            <keyboard-shortcut keymap="$default" first-keystroke="alt COMMA"/>
+        </action>
+        <action id="CartoonPageRight" class="com.github.shy526.action.CartoonPageRight" text="CartoonPageRight"
+                description="CartoonPageRight">
+            <keyboard-shortcut keymap="$default" first-keystroke="alt PERIOD"/>
+        </action>
+    </actions>
+</idea-plugin>
