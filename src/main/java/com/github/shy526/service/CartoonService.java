@@ -7,23 +7,29 @@ import com.github.shy526.http.HttpClientService;
 import com.github.shy526.http.HttpResult;
 import com.github.shy526.obj.Cartoon;
 import com.github.shy526.obj.Chapter;
+import com.github.shy526.tool.IdeaService;
+import com.intellij.ide.util.PropertiesComponent;
 import com.intellij.openapi.diagnostic.Logger;
+import com.intellij.openapi.progress.ProgressIndicator;
+import com.intellij.openapi.progress.ProgressManager;
+import com.intellij.openapi.progress.Task;
+import com.intellij.openapi.wm.impl.IdeBackgroundUtil;
 import jdk.nashorn.api.scripting.ScriptObjectMirror;
+import org.apache.commons.io.IOUtils;
+import org.jetbrains.annotations.NotNull;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
-import java.io.FileOutputStream;
-import java.io.InputStream;
+import java.io.*;
 import java.net.URLEncoder;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
  * @author shy526
@@ -34,79 +40,100 @@ public class CartoonService {
     private final static String SELECT_URL = MAIN + "search?title=%s&page=%s";
     private final static String CHAPTER_URL = MAIN + "/%s/";
     private final static String IMAG_URL = MAIN + "/%s/chapterimage.ashx?cid=%s&page=%s&key=";
+    private final static Map<String, String> HEADER = new HashMap<>(1);
     private final static ScriptEngine JS_SCRIPT_ENGINE = new ScriptEngineManager().getEngineByName("javascript");
     private static final Logger LOG = Logger.getInstance(CartoonService.class);
-    private final static Pattern SUFFIX = Pattern.compile(".*\\.(jpg|png)?.*");
 
     static {
-        HttpClientProperties properties = new HttpClientProperties();
-        Map<String, String> header = properties.getHeader();
-        header.put("referer", MAIN);
-        HTTP_CLIENT_SERVICE = HttpClientFactory.getHttpClientService(properties);
+        HEADER.put("referer", MAIN);
+        HTTP_CLIENT_SERVICE = IdeaService.getInstance(HttpClientService.class);
     }
 
     public List<Cartoon> selectCartoon(String sTitle) {
         if (sTitle == null || "".equals(sTitle.trim())) {
-            return null;
+            return new ArrayList<>();
         }
         try {
             sTitle = URLEncoder.encode(sTitle, "utf-8");
         } catch (Exception e) {
-            e.printStackTrace();
+            LOG.error(e.getMessage(), e);
         }
         String url = String.format(SELECT_URL, sTitle, 0);
-        HttpResult httpResult = HTTP_CLIENT_SERVICE.get(url);
-        String entityStr = httpResult.getEntityStr();
-        Document document = Jsoup.parse(entityStr);
-        return ObjFactory.produceCartoon(document);
-
+        try (HttpResult mPage = HTTP_CLIENT_SERVICE.get(url, null, HEADER)) {
+            HttpResult httpResult = HTTP_CLIENT_SERVICE.get(url, null, HEADER);
+            String entityStr = httpResult.getEntityStr();
+            Document document = Jsoup.parse(entityStr);
+            return ObjFactory.produceCartoon(document);
+        } catch (Exception e) {
+            LOG.error(e.getMessage(), e);
+        }
+        return new ArrayList<>();
     }
 
 
     public List<Chapter> selectChapter(Cartoon cartoon) {
         String url = String.format(CHAPTER_URL, cartoon.getId());
-        HttpResult mPage = HTTP_CLIENT_SERVICE.get(url);
-        Document doc = Jsoup.parse(mPage.getEntityStr());
-        return ObjFactory.produceChapter(doc);
+        try (HttpResult mPage = HTTP_CLIENT_SERVICE.get(url, null, HEADER)) {
+
+            Document doc = Jsoup.parse(mPage.getEntityStr());
+            return ObjFactory.produceChapter(doc);
+        } catch (Exception e) {
+            LOG.error(e.getMessage(), e);
+        }
+
+        return new ArrayList<>();
     }
 
-    public List<String> selectImag(Chapter chapter, Path path) {
-        int index = 1;
-        List<String> result = new ArrayList<String>();
-        byte[] buff = new byte[1024 * 4];
-        int imagIndex = 0;
-        for (int page = 1; page <= chapter.getTotal(); page += index) {
-            String mId = chapter.getId();
-            String id = chapter.getId().replaceAll("m", "");
-            HttpResult httpResult = HTTP_CLIENT_SERVICE.get(String.format(IMAG_URL, mId, id, page));
-            try {
-
-                ScriptObjectMirror eval = (ScriptObjectMirror) JS_SCRIPT_ENGINE.eval(httpResult.getEntityStr());
-                if (eval != null) {
-                    index = eval.size();
-                    for (Map.Entry entry : eval.entrySet()) {
-                        Object v = entry.getValue();
-                        Path imag = path.resolve(imagIndex + ".jpg");
-                        try (HttpResult down = HTTP_CLIENT_SERVICE.get(v.toString());
-                             InputStream liveIn = new BufferedInputStream(down.getResponse().getEntity().getContent());
-                             BufferedOutputStream fileOut = new BufferedOutputStream(new FileOutputStream(imag.toFile()))) {
-                            int len = -1;
-                            while ((len = liveIn.read(buff)) != -1) {
-                                fileOut.write(buff, 0, len);
-                            }
-                            imagIndex++;
-                        } catch (Exception e) {
-                            LOG.error(e.getMessage(), e);
-                        }
+    public void selectImag(Chapter chapter, Path path, Consumer<Chapter> consumer) {
+        ProgressManager progressManager = IdeaService.getProgressManager();
+        progressManager.run(new Task.Backgroundable(null, "SelectImag->" + chapter) {
+            @Override
+            public void run(@NotNull ProgressIndicator indicator) {
+                int index = 1;
+                List<String> result = new ArrayList<String>();
+                int imagIndex = 0;
+                for (int page = 1; page <= chapter.getTotal(); page += index) {
+                    String mId = chapter.getId();
+                    String id = chapter.getId().replaceAll("m", "");
+                    String jsUrl = String.format(IMAG_URL, mId, id, page);
+                    indicator.setText(chapter + "->" + jsUrl);
+                    if (indicator.isCanceled()) {
+                        break;
                     }
-
-                } else {
-                    break;
+                    HttpResult httpResult = HTTP_CLIENT_SERVICE.get(jsUrl, null, HEADER);
+                    try {
+                        ScriptObjectMirror eval = (ScriptObjectMirror) JS_SCRIPT_ENGINE.eval(httpResult.getEntityStr());
+                        if (eval == null) {
+                            break;
+                        }
+                        index = eval.size();
+                        for (Map.Entry entry : eval.entrySet()) {
+                            Object v = entry.getValue();
+                            imagIndex++;
+                            File imagFile = path.resolve(imagIndex + ".jpg").toFile();
+                            if (imagFile.exists()) {
+                                continue;
+                            }
+                            indicator.setText(chapter + "->" + v.toString());
+                            if (indicator.isCanceled()) {
+                                break;
+                            }
+                            try (HttpResult down = HTTP_CLIENT_SERVICE.get(v.toString()); InputStream imagIn = down.getInputStream(); OutputStream fileOut = new BufferedOutputStream(new FileOutputStream(imagFile))) {
+                                IOUtils.copy(imagIn, fileOut);
+                            } catch (Exception e) {
+                                LOG.error(e.getMessage(), e);
+                            }
+                        }
+                    } catch (Exception e) {
+                        LOG.error(e.getMessage(), e);
+                    }
                 }
-            } catch (Exception e) {
-                LOG.error(e.getMessage(), e);
+                if (consumer != null) {
+                    consumer.accept(chapter);
+                }
+
             }
-        }
-        return result;
+        });
+
     }
 }

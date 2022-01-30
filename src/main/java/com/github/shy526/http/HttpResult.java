@@ -10,8 +10,10 @@ import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpRequestBase;
 import org.apache.http.util.EntityUtils;
 
+import java.io.BufferedInputStream;
 import java.io.Closeable;
 import java.io.IOException;
+import java.io.InputStream;
 
 /**
  * http统一返回结果集
@@ -33,12 +35,12 @@ public class HttpResult implements Closeable {
     public HttpResult() {
     }
 
-    public HttpResult(Exception error,HttpRequestBase request ) {
+    public HttpResult(Exception error, HttpRequestBase request) {
         this.error = error;
         this.request = request;
     }
 
-    public HttpResult(CloseableHttpResponse response,HttpRequestBase request) {
+    public HttpResult(CloseableHttpResponse response, HttpRequestBase request) {
         this.response = response;
         this.request = request;
         if (this.response != null) {
@@ -55,8 +57,8 @@ public class HttpResult implements Closeable {
     public String getEntityStr(String encode) {
         try {
             if (httpStatus.equals(HttpStatus.SC_OK) && StringUtils.isEmpty(this.entityStr)) {
-                 HttpEntity entity = this.response.getEntity();
-                this.entityStr =entity==null?null: EntityUtils.toString(entity, encode);
+                HttpEntity entity = this.response.getEntity();
+                this.entityStr = entity == null ? null : EntityUtils.toString(entity, encode);
             }
         } catch (Exception e) {
             log.error(e.getMessage(), e);
@@ -90,6 +92,10 @@ public class HttpResult implements Closeable {
                 response = null;
             }
         }
+    }
+
+    public InputStream getInputStream() throws IOException {
+        return new BufferedInputStream(this.getResponse().getEntity().getContent());
     }
 
     @Override

@@ -4,7 +4,7 @@ import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 
 /**
- * alet+,
+ * alt+,
  * @author shy526
  */
 public class CartoonPageLeft extends AnAction implements CartoonPage {

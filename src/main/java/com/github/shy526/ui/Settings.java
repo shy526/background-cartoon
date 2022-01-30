@@ -5,6 +5,7 @@ import com.github.shy526.obj.Chapter;
 import com.github.shy526.service.CartoonService;
 import com.github.shy526.factory.CartoonServiceFactory;
 import com.github.shy526.service.StorageService;
+import com.github.shy526.tool.IdeaService;
 import com.intellij.ide.util.PropertiesComponent;
 import com.intellij.openapi.fileChooser.FileChooser;
 import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory;
@@ -107,7 +108,7 @@ public class Settings implements Configurable {
 
     @Override
     public boolean isModified() {
-        StorageService storageService = StorageService.getInstance();
+        StorageService storageService = IdeaService.getInstance(StorageService.class);
         String oldCacheDir = storageService.getCacheDir();
         Cartoon oldCartoon = storageService.getCartoon();
         Chapter oldChapter = storageService.getChapter();
@@ -115,7 +116,7 @@ public class Settings implements Configurable {
         String newCacheDir = cacheBrowse.getText();
         Cartoon newCartoon = searchComboBox.getItem();
         Chapter newChapter = chapterComboBox.getItem();
-        Integer newPage = ((Integer) pageSpinner.getValue())-2;
+        Integer newPage = ((Integer) pageSpinner.getValue());
         return modifiedValue(oldCacheDir, newCacheDir) || modifiedValue(oldCartoon, newCartoon) || modifiedValue(oldChapter, newChapter) || modifiedValue(oldPage, newPage);
     }
 
@@ -141,17 +142,17 @@ public class Settings implements Configurable {
 
     @Override
     public void apply() throws ConfigurationException {
-        StorageService storageService = StorageService.getInstance();
+        StorageService storageService = IdeaService.getInstance(StorageService.class);
         storageService.setCartoon(searchComboBox.getItem());
         storageService.setCacheDir(cacheBrowse.getText());
         storageService.setChapter(chapterComboBox.getItem());
-        storageService.setPage(((Integer) pageSpinner.getValue())-2);
+        storageService.setPage((Integer) pageSpinner.getValue());
         storageService.loadState(storageService);
     }
 
     @Override
     public void reset() {
-        StorageService storageService = StorageService.getInstance();
+        StorageService storageService = IdeaService.getInstance(StorageService.class);
         String oldCacheDir = storageService.getCacheDir();
         Cartoon oldCartoon = storageService.getCartoon();
         Chapter oldChapter = storageService.getChapter();
@@ -163,7 +164,7 @@ public class Settings implements Configurable {
             chapterComboBox.setSelectedItem(oldChapter);
         }
         if (oldPage != null) {
-            pageSpinner.setValue(oldPage+1);
+            pageSpinner.setValue(oldPage);
         }
         chapterPageVisible(flag);
 

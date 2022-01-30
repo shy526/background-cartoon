@@ -5,104 +5,150 @@ import com.github.shy526.obj.Cartoon;
 import com.github.shy526.obj.Chapter;
 import com.github.shy526.service.CartoonService;
 import com.github.shy526.service.StorageService;
+import com.github.shy526.tool.IdeaService;
 import com.github.shy526.tool.NotificationSend;
 import com.intellij.ide.util.PropertiesComponent;
 import com.intellij.openapi.actionSystem.AnActionEvent;
-import com.intellij.openapi.progress.ProgressIndicator;
-import com.intellij.openapi.progress.ProgressManager;
-import com.intellij.openapi.progress.Task;
 import com.intellij.openapi.wm.impl.IdeBackgroundUtil;
 import org.apache.commons.lang.StringUtils;
-import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
 import java.nio.file.Path;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
-
-import static com.intellij.openapi.progress.ProgressIndicatorProvider.checkCanceled;
 
 /**
  * 处理翻页逻辑
+ *
  * @author shy526
  */
 public interface CartoonPage {
+    static boolean FLAG = false;
+
     /**
      * 翻页
      *
      * @param step 步长
      */
     default void page(int step, AnActionEvent anActionEvent) {
-        StorageService storageService = StorageService.getInstance();
+        StorageService storageService = IdeaService.getInstance(StorageService.class);
         CartoonService cartoonService = CartoonServiceFactory.getInstance();
         String cacheDir = storageService.getCacheDir();
         Cartoon cartoon = storageService.getCartoon();
         Chapter chapter = storageService.getChapter();
-        Integer page = storageService.getPage();
+        Boolean flag = storageService.getFlag();
+        if (flag) {
+            NotificationSend.info("load ing", 1000);
+            return;
+        }
+        int page = storageService.getPage();
         page += step;
         if (StringUtils.isEmpty(cacheDir)) {
+            NotificationSend.info("not settings", 1000);
             return;
         }
         File fileDer = new File(cacheDir);
         if (!fileDer.exists() || fileDer.isFile()) {
+            NotificationSend.info("not settings", 1000);
             return;
         }
         if (cartoon == null || chapter == null) {
+            NotificationSend.info("not settings", 1000);
             return;
         }
-        if (page >= chapter.getTotal() || page < 0) {
+        Chapter nextChapter = getNextChapter(step);
+        boolean cacheFlag = true;
+        if (page > chapter.getTotal() || page < 1) {
             //页码翻动章节
             List<Chapter> chapters = cartoon.getChapters();
-            int next = -1;
-            int chapterTotal = chapters.size();
-            for (int i = 0; i < chapterTotal; i++) {
-                if (chapter.equals(chapters.get(i))) {
-                    next = i + step;
-                    break;
-                }
-            }
-            if (next >= chapterTotal) {
-                //拉取新章节
-                chapters = cartoonService.selectChapter(cartoon);
-                cartoon.setChapters(chapters);
-                storageService.loadState(storageService);
-            }
-            if (next >= chapters.size() || next < 0) {
-                //没有跟多章节
+
+
+            if (nextChapter == null) {
+                NotificationSend.info("not chapter", 1000);
                 return;
             }
-            chapter = chapters.get(next);
+            chapter = nextChapter;
             storageService.setChapter(chapter);
             storageService.loadState(storageService);
-            page = page < 0 ? chapter.getTotal() - 1 : 0;
+            page = page < 1 ? chapter.getTotal() : 1;
+            cacheFlag = false;
         }
-        File chapterDir = Path.of(cacheDir).resolve(cartoon.toString()).resolve(chapter.toString()).toFile();
-
+        if (nextChapter != null && cacheFlag) {
+            chapterCache(nextChapter);
+        }
+        File chapterDir = storageService.nowChapterDir();
         if (!chapterDir.exists()) {
             chapterDir.mkdirs();
         }
-        ProgressManager instance = ProgressManager.getInstance();
-        Chapter finalChapter = chapter;
-        Integer finalPage = page;
-        instance.run(new Task.Backgroundable(anActionEvent.getProject(),"load ") {
-            @Override
-            public void run(@NotNull ProgressIndicator indicator) {
-                File[] files = chapterDir.listFiles(File::isFile);
-                if (files == null || finalChapter.getTotal() != files.length) {
-                    List<String> strings = cartoonService.selectImag(finalChapter, chapterDir.toPath());
-                }
-                List<File> image = Arrays.stream(Objects.requireNonNull(chapterDir.listFiles(File::isFile))).sorted(Comparator.comparing(o -> Integer.valueOf(o.getName().substring(0, o.getName().lastIndexOf("."))))).collect(Collectors.toList());
-                PropertiesComponent prop = PropertiesComponent.getInstance();
-                prop.setValue(IdeBackgroundUtil.FRAME_PROP, null);
-                prop.setValue(IdeBackgroundUtil.EDITOR_PROP, image.get(finalPage).getAbsolutePath());
-                storageService.setPage(finalPage);
-                storageService.loadState(storageService);
-                IdeBackgroundUtil.repaintAllWindows();
+        int finalPage = page;
+        Consumer<Chapter> consumer = chapter1 -> {
+            List<File> image = Arrays.stream(Objects.requireNonNull(chapterDir.listFiles(File::isFile))).sorted(Comparator.comparing(o -> Integer.valueOf(o.getName().substring(0, o.getName().lastIndexOf("."))))).collect(Collectors.toList());
+            PropertiesComponent prop = PropertiesComponent.getInstance();
+            int i = finalPage - 1;
+            if (i >= image.size()) {
+                NotificationSend.error("error imag");
             }
-        });
+            prop.setValue(IdeBackgroundUtil.EDITOR_PROP, image.get(i).getAbsolutePath() + ",11,plain,center");
+            storageService.setFlag(false);
+            storageService.setPage(finalPage);
+            storageService.loadState(storageService);
+            IdeBackgroundUtil.repaintAllWindows();
+        };
+        File[] files = chapterDir.listFiles(File::isFile);
+        if (files == null || chapter.getTotal() != files.length) {
+            storageService.setFlag(true);
+            cartoonService.selectImag(chapter, chapterDir.toPath(), consumer);
+
+        } else {
+            consumer.accept(chapter);
+        }
+
 
     }
+
+    private void chapterCache(Chapter chapter) {
+        StorageService storageService = IdeaService.getInstance(StorageService.class);
+        CartoonService cartoonService = CartoonServiceFactory.getInstance();
+        String cacheDir = storageService.getCacheDir();
+        Cartoon cartoon = storageService.getCartoon();
+        File chapterDir = Path.of(cacheDir).resolve(cartoon.toString()).resolve(chapter.toString()).toFile();
+        if (chapterDir.exists()) {
+            return;
+        }
+        chapterDir.mkdirs();
+        File[] files = chapterDir.listFiles(File::isFile);
+        if (files == null || chapter.getTotal() != files.length) {
+            storageService.setFlag(true);
+            cartoonService.selectImag(chapter, chapterDir.toPath(), null);
+
+        }
+    }
+
+    private Chapter getNextChapter(int step) {
+        StorageService storageService = IdeaService.getInstance(StorageService.class);
+        CartoonService cartoonService = CartoonServiceFactory.getInstance();
+        Cartoon cartoon = storageService.getCartoon();
+        List<Chapter> chapters = cartoon.getChapters();
+        Chapter chapter = storageService.getChapter();
+        int next = -1;
+        int chapterTotal = chapters.size();
+        for (int i = 0; i < chapterTotal; i++) {
+            if (chapter.equals(chapters.get(i))) {
+                next = i + step;
+                break;
+            }
+        }
+        if (next >= chapterTotal) {
+            //拉取新章节
+            chapters = cartoonService.selectChapter(cartoon);
+            cartoon.setChapters(chapters);
+            storageService.loadState(storageService);
+        }
+        if (next < chapterTotal && next > 0) {
+            return chapters.get(next);
+        }
+        return null;
+    }
+
 }

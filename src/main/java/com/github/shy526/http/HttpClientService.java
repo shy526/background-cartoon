@@ -13,6 +13,9 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.util.Map;
 
+import static com.github.shy526.http.HttpClientFactory.getHttpClient;
+import static com.github.shy526.http.HttpClientFactory.getRequestConfig;
+
 /**
  * HttpClientService 实际实现类
  *
@@ -20,9 +23,13 @@ import java.util.Map;
  */
 public class HttpClientService {
     private final CloseableHttpClient httpClient;
-
     private final RequestConfig requestConfig;
 
+    public HttpClientService() {
+        HttpClientProperties properties = new HttpClientProperties();
+        this.httpClient = getHttpClient(properties);
+        this.requestConfig = getRequestConfig(properties);
+    }
 
     public HttpClientService(CloseableHttpClient httpClient, RequestConfig requestConfig) {
         this.httpClient = httpClient;
@@ -195,7 +202,7 @@ public class HttpClientService {
 
             result = new HttpResult(httpClient.execute(requestBase), requestBase);
         } catch (Exception e) {
-            if (logFlag){
+            if (logFlag) {
                 e.printStackTrace();
             }
             result = new HttpResult(e, requestBase);

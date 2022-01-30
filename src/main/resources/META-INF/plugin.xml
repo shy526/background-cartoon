@@ -16,8 +16,12 @@
                                  instance="com.github.shy526.ui.Settings"/>
 
         <applicationService serviceImplementation="com.github.shy526.service.StorageService"/>
+        <applicationService serviceImplementation="com.github.shy526.http.HttpClientService"/>
     </extensions>
-
+    <applicationListeners>
+        <listener class="com.github.shy526.topic.listener.DownloadChapterListener"
+                  topic="com.github.shy526.topic.DownloadChapterTopic"/>
+    </applicationListeners>
     <actions>
         <action id="CartoonPageLeft" class="com.github.shy526.action.CartoonPageLeft" text="CartoonPageLeft"
                 description="CartoonPageLeft">
@@ -29,7 +33,8 @@
         </action>
         <action id="CartoonInfo" class="com.github.shy526.action.CartoonInfo" text="CartoonInfo"
                 description="CartoonInfo">
-            <keyboard-shortcut keymap="$default" first-keystroke="alt SLASH"/>
+            <keyboard-shortcut keymap="$default" first-keystroke="alt M"/>
         </action>
+
     </actions>
 </idea-plugin>
