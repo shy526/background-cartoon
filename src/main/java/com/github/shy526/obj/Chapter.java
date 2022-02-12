@@ -8,6 +8,8 @@ public class Chapter {
     private String id;
     private String title;
     private Integer total;
+    private Integer index;
+
     @Override
     public String toString() {
         return title + "-" + total;

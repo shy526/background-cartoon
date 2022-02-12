@@ -1,5 +1,6 @@
 package com.github.shy526.tool;
 
+import com.intellij.ide.util.PropertiesComponent;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.components.ComponentManager;
 import com.intellij.openapi.progress.ProgressManager;
@@ -32,5 +33,9 @@ public class IdeaService {
 
     public static MessageBus getMessageBus() {
         return ApplicationManager.getApplication().getMessageBus();
+    }
+
+    public static PropertiesComponent getPropertiesComponent() {
+        return PropertiesComponent.getInstance();
     }
 }

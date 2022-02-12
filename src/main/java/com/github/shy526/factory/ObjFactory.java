@@ -36,6 +36,7 @@ public class ObjFactory {
     public static List<Chapter> produceChapter(Document document) {
         final Elements select = document.select("#chapterlistload>a");
         List<Chapter> chapters = new ArrayList<>();
+        int index = 0;
         for (int i = select.size() - 1; i >= 0; i--) {
             Element element = select.get(i);
             Chapter chapter = new Chapter();
@@ -45,6 +46,8 @@ public class ObjFactory {
             if (totalMatcher.find()) {
                 chapter.setTotal(Integer.parseInt(totalMatcher.group(1)));
             }
+            chapter.setIndex(index);
+            index++;
             chapter.setTitle(element.ownText());
             chapters.add(chapter);
         }

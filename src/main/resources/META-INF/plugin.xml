@@ -10,31 +10,37 @@
     <depends>com.intellij.modules.platform</depends>
 
     <extensions defaultExtensionNs="com.intellij">
-        <notificationGroup id="background-cartoon" displayType="BALLOON"/>
-        <applicationConfigurable parentId="tools" groupWeight="20" id="com.github.shy526.ui.Settings"
+        <notificationGroup id="backgroundCartoon" displayType="BALLOON"/>
+        <applicationConfigurable parentId="other" groupWeight="20" id="com.github.shy526.ui.Settings"
                                  displayName="Background Cartoon"
                                  instance="com.github.shy526.ui.Settings"/>
 
         <applicationService serviceImplementation="com.github.shy526.service.StorageService"/>
         <applicationService serviceImplementation="com.github.shy526.http.HttpClientService"/>
+        <applicationService serviceImplementation="com.github.shy526.service.CartoonService"/>
     </extensions>
     <applicationListeners>
-        <listener class="com.github.shy526.topic.listener.DownloadChapterListener"
-                  topic="com.github.shy526.topic.DownloadChapterTopic"/>
+        <!--注册监听器-->
+        <listener class="com.github.shy526.topic.listener.CartoonPageListener"
+                  topic="com.github.shy526.topic.CartoonPageTopic"/>
     </applicationListeners>
     <actions>
-        <action id="CartoonPageLeft" class="com.github.shy526.action.CartoonPageLeft" text="CartoonPageLeft"
-                description="CartoonPageLeft">
-            <keyboard-shortcut keymap="$default" first-keystroke="alt COMMA"/>
-        </action>
-        <action id="CartoonPageRight" class="com.github.shy526.action.CartoonPageRight" text="CartoonPageRight"
-                description="CartoonPageRight">
-            <keyboard-shortcut keymap="$default" first-keystroke="alt PERIOD"/>
-        </action>
-        <action id="CartoonInfo" class="com.github.shy526.action.CartoonInfo" text="CartoonInfo"
-                description="CartoonInfo">
-            <keyboard-shortcut keymap="$default" first-keystroke="alt M"/>
-        </action>
+        <group id="static.group.id.background-cartoon" text="BackgroundCartoon" popup="true">
+            <add-to-group group-id="ToolsMenu" anchor="first"/>
+            <action id="com.github.shy526.action.CartoonPageLef" class="com.github.shy526.action.CartoonPageLeft" text="CartoonPageLeft"
+                    description="CartoonPageLeft">
+                <keyboard-shortcut keymap="$default" first-keystroke="alt COMMA"/>
+            </action>
+            <action id="com.github.shy526.action.CartoonPageRight" class="com.github.shy526.action.CartoonPageRight" text="CartoonPageRight"
+                    description="CartoonPageRight">
+                <keyboard-shortcut keymap="$default" first-keystroke="alt PERIOD"/>
+            </action>
+            <action id="com.github.shy526.action.CartoonInfo" class="com.github.shy526.action.CartoonInfo" text="CartoonInfo"
+                    description="CartoonInfo">
+                <keyboard-shortcut keymap="$default" first-keystroke="alt M"/>
+            </action>
+        </group>
+
 
     </actions>
 </idea-plugin>

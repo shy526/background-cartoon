@@ -3,10 +3,9 @@ package com.github.shy526.ui;
 import com.github.shy526.obj.Cartoon;
 import com.github.shy526.obj.Chapter;
 import com.github.shy526.service.CartoonService;
-import com.github.shy526.factory.CartoonServiceFactory;
 import com.github.shy526.service.StorageService;
 import com.github.shy526.tool.IdeaService;
-import com.intellij.ide.util.PropertiesComponent;
+import com.github.shy526.topic.CartoonPageTopic;
 import com.intellij.openapi.fileChooser.FileChooser;
 import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory;
 import com.intellij.openapi.options.Configurable;
@@ -28,11 +27,6 @@ import java.io.File;
 import java.util.List;
 
 public class Settings implements Configurable {
-
-    public static final String CACHE_DER_KEY = "cacheDer";
-    public static final String CARTOON_KEY = "cartoon";
-    public static final String CHAPTER_KEY = "chapter";
-    public static final String PAGE_KEY = "page";
     private JPanel rootPanel;
     private JLabel searchLabel;
     private TextFieldWithBrowseButton cacheBrowse;
@@ -42,7 +36,7 @@ public class Settings implements Configurable {
     private JLabel pageLabel;
     private ComboBox<Chapter> chapterComboBox;
     private JSpinner pageSpinner;
-    private final CartoonService cartoonService = CartoonServiceFactory.getInstance();
+    private final CartoonService cartoonService = IdeaService.getInstance(CartoonService.class);
 
     @Override
     public @Nullable JComponent createComponent() {
@@ -58,10 +52,9 @@ public class Settings implements Configurable {
         searchComboBox.setEditable(true);
         searchComboBox.addItemListener(e -> {
             Cartoon cartoon = (Cartoon) e.getItem();
-            List<Chapter> chapters = cartoonService.selectChapter(cartoon);
-            cartoon.setChapters(chapters);
+            cartoon = cartoonService.selectChapter(cartoon);
             chapterComboBox.removeAllItems();
-            chapters.forEach(item -> chapterComboBox.addItem(item));
+            cartoon.getChapters().forEach(item -> chapterComboBox.addItem(item));
             chapterPageVisible(true);
         });
         chapterComboBox.addItemListener(e -> {
@@ -112,7 +105,7 @@ public class Settings implements Configurable {
         String oldCacheDir = storageService.getCacheDir();
         Cartoon oldCartoon = storageService.getCartoon();
         Chapter oldChapter = storageService.getChapter();
-        Integer oldPage = storageService.getPage();
+        Integer oldPage = storageService.getPage()+1;
         String newCacheDir = cacheBrowse.getText();
         Cartoon newCartoon = searchComboBox.getItem();
         Chapter newChapter = chapterComboBox.getItem();
@@ -146,8 +139,10 @@ public class Settings implements Configurable {
         storageService.setCartoon(searchComboBox.getItem());
         storageService.setCacheDir(cacheBrowse.getText());
         storageService.setChapter(chapterComboBox.getItem());
-        storageService.setPage((Integer) pageSpinner.getValue());
+        storageService.setPage(((Integer) pageSpinner.getValue())-1);
         storageService.loadState(storageService);
+        CartoonPageTopic downloadChapterTopic = IdeaService.getMessageBus().syncPublisher(CartoonPageTopic.CARTOON_PAGE_TOPIC);
+        downloadChapterTopic.page(0);
     }
 
     @Override
@@ -164,11 +159,9 @@ public class Settings implements Configurable {
             chapterComboBox.setSelectedItem(oldChapter);
         }
         if (oldPage != null) {
-            pageSpinner.setValue(oldPage);
+            pageSpinner.setValue(oldPage+1);
         }
         chapterPageVisible(flag);
-
-
     }
 
 

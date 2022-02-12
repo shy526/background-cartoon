@@ -1,16 +1,20 @@
 package com.github.shy526.action;
 
+import com.github.shy526.tool.IdeaService;
+import com.github.shy526.topic.CartoonPageTopic;
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 
 /**
  * alt+,
+ *
  * @author shy526
  */
-public class CartoonPageLeft extends AnAction implements CartoonPage {
+public class CartoonPageLeft extends AnAction {
 
     @Override
     public void actionPerformed(AnActionEvent anActionEvent) {
-        page(-1  ,anActionEvent);
+        CartoonPageTopic downloadChapterTopic = IdeaService.getMessageBus().syncPublisher(CartoonPageTopic.CARTOON_PAGE_TOPIC);
+        downloadChapterTopic.page(-1);
     }
 }
